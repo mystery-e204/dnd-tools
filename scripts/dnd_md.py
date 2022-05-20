@@ -71,10 +71,13 @@ class DNDMarkDown:
 
         if self._lines[line_idx + 1].strip():
             self._log_error("Missing line break after characteristics heading")
-            line_idx -= 1
+
+        for line_idx, line in enumerate(self._lines[line_idx + 1 :], line_idx + 1):
+            if line.strip():
+                break
 
         characteristics = OrderedDict()
-        for line in self._lines[line_idx + 2 :]:
+        for line_idx, line in enumerate(self._lines[line_idx :], line_idx):
             key, ok, val = line.partition(":")
             if not ok:
                 break
@@ -84,7 +87,7 @@ class DNDMarkDown:
                 if key:
                     if key in characteristics:
                         self._log_error(f"{key} appears twice in characteristics block")
-                    characteristics[key] = val
+                    characteristics[key] = (line_idx, val)
 
         return characteristics
 
@@ -138,7 +141,7 @@ class DNDMarkDown:
         if not found_error:
             if any(key != ref_key for key, ref_key in zip(self._characteristics, ref_keys)):
                 self._log_error("Characteristics block is shuffled")
-            for key, val in self._characteristics.items():
+            for key, (_, val) in self._characteristics.items():
                 if not val:
                     self._log_warning(f"{key} has no value")
 
