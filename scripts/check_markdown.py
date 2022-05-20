@@ -80,7 +80,7 @@ class DNDMarkDown:
             if key.startswith("* "):
                 key = key[2:].strip()
                 val = val.strip()
-                if key and val:
+                if key:
                     if key in characteristics:
                         self._log_error(f"{key} appears twice in characteristics block")
                     characteristics[key] = val
@@ -137,6 +137,9 @@ class DNDMarkDown:
         if not found_error:
             if any(key != ref_key for key, ref_key in zip(self._characteristics, ref_keys)):
                 self._log_error("Characteristics block is shuffled")
+            for key, val in self._characteristics.items():
+                if not val:
+                    self._log_warning(f"{key} has no value")
 
     def check_integrity(self) -> bool:
         """
