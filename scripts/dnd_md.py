@@ -29,6 +29,7 @@ class DNDMarkDown:
     Facilitates a DnD Markdown document
     """
     def __init__(self, file_path: Path, logger: Logger = None):
+        self._path = file_path
         self._logger = logger
 
         with open(file_path, "r", encoding="utf-8") as file:
@@ -111,7 +112,7 @@ class DNDMarkDown:
             self._log_error("Title heading has wrong level")
         elif not line.startswith("# "):
             self._log_error("Title is malformed")
-        elif line != f"# {path.stem}":
+        elif line != f"# {self._path.stem}":
             self._log_error("Title does not match file name")
 
     def _check_characteristics(self):
