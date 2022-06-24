@@ -6,6 +6,11 @@ import json
 import argparse
 from random import randint
 from typing import Any, List, TypedDict, Callable
+import re
+
+PATTERN_SLASH_DATE = re.compile(r"^(\d+)\/(\d+)\/(\d+) *(\w+)?$")
+PATTERN_WORDED_DATE = re.compile(r"^(\d+)(st|nd|rd|th) +of +(\w+) +(\d+) *(\w+)?$")
+PATTERN_SPECIAL_DATE = re.compile(r"^.* (\d+) *(\w+)?$")
 
 class Month(TypedDict):
     name: str
@@ -48,7 +53,18 @@ class DateError(Exception):
     def __init__(self, date: Date):
         message = f"{date} is not a valid date"
         super().__init__(message)
-        
+
+
+def nth_from_day(day: int) -> str:
+    if day < 0:
+        raise ValueError("Day must not be negative")
+    last_digit = day % 10
+    if last_digit == 1: suffix = "st"
+    elif last_digit == 2: suffix = "nd"
+    elif last_digit == 3: suffix = "rd"
+    else: suffix = "th"
+    return f"{day}{suffix}"
+
 
 class Calendar():
     def __init__(self, months: List[Month], today: str, before: str, after: str, has_year_zero: bool) -> None:
@@ -59,29 +75,43 @@ class Calendar():
         self.today = self.date_from_string(today)
         
     def date_from_string(self, s: str) -> Date:
-        day, month, year_str = s.split("/")
+        # Dates like 23/7/1978
+        if matched := re.match(PATTERN_SLASH_DATE, s):
+            day, month, year, before_or_after = matched.groups()
+            day, month, year = map(int, (day, month, year))
+        # Dates like 23rd of July 1978
+        elif matched := re.match(PATTERN_WORDED_DATE, s):
+            day, suffix, month, year, before_or_after = matched.groups()
+            day = int(day)
+            month = self._get_month_num(month)
+            year = int(year)
+        # Special days inbetween months
+        elif matched := re.match(PATTERN_SPECIAL_DATE, s):
+            name, year, before_or_after = matched.groups()
+            day = 1
+            month = self._get_month_num(month)
+            year = int(year)
 
-        tup = year_str.split()
-        if len(tup) == 1:
-            year = int(tup[0])
-        elif tup[1] == self._before:
-            year = -int(tup[0]) + int(not self._has_year_zero)
-        elif tup[1] == self._after:
-            year = int(tup[0])
-        else:
-            raise Exception(f"Token {tup[1]} not recognized as before or after")
+        if before_or_after:
+            if before_or_after == self._before:
+                year = -year + int(not self._has_year_zero)
+            elif before_or_after != self._after:
+                raise Exception(f"Token {before_or_after} not recognized as before or after")
 
-        date = Date(year, int(month), int(day))
+        date = Date(year, month, day)
         if not self.verify_date(date): raise DateError(date)
-
         return date
 
     def string_from_date(self, date: Date) -> str:
         if not self.verify_date(date): raise DateError(date)
+
         year = date.year - int(date.year < 1 and not self._has_year_zero)
         before_or_after = self._before if year < 0 else self._after
+        year = abs(year)
+        day_str = nth_from_day(date.day)
+        month_str = self._months[date.month - 1]["name"]
 
-        return f"{date.day}/{date.month}/{abs(year)} {before_or_after}"
+        return f"{day_str} of {month_str} {year} {before_or_after}"
 
     def verify_date(self, date: Date) -> bool:
         return (
@@ -92,6 +122,12 @@ class Calendar():
     @property
     def num_days_of_year(self):
         return sum(month["days"] for month in self._months)
+
+    def _get_month_num(self, month_name: str) -> int:
+        for num, month in enumerate(self._months, 1):
+            if month["name"] == month_name:
+                return num
+        raise Exception(f"Month {month_name} not found in calendar")
 
     def _day_of_year(self, date: Date) -> int:
         return date.day + sum(month["days"] for month in self._months[: date.month])
@@ -215,8 +251,7 @@ class Calendar():
             return self._get_random_date(start, stop)
 
 def load_calendar(json_file) -> Calendar:
-    with json_file as json_data:
-        calendar_data = json.load(json_data)
+    calendar_data = json.load(json_file)
     return Calendar(*[calendar_data[key] for key in ["months", "today", "before", "after", "hasYearZero"]])
 
 def add_command(sub_parsers, name: str, callback: Callable[[Calendar, argparse.Namespace], Any]) -> argparse.ArgumentParser:
