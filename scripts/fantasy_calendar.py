@@ -9,8 +9,8 @@ from typing import Any, List, TypedDict, Callable
 import re
 
 PATTERN_SLASH_DATE = re.compile(r"^(\d+)\/(\d+)\/(\d+) *(\w+)?$")
-PATTERN_WORDED_DATE = re.compile(r"^(\d+)(st|nd|rd|th) +of +(\w+) +(\d+) *(\w+)?$")
-PATTERN_SPECIAL_DATE = re.compile(r"^.* (\d+) *(\w+)?$")
+PATTERN_WORDED_DATE = re.compile(r"^(\d+)(st|nd|rd|th) +of +(\D+\S) +(\d+) *(\w+)?$")
+PATTERN_SPECIAL_DATE = re.compile(r"^(.*) (\d+) *(\w+)?$")
 
 class Month(TypedDict):
     name: str
@@ -58,10 +58,12 @@ class DateError(Exception):
 def nth_from_day(day: int) -> str:
     if day < 0:
         raise ValueError("Day must not be negative")
-    last_digit = day % 10
-    if last_digit == 1: suffix = "st"
-    elif last_digit == 2: suffix = "nd"
-    elif last_digit == 3: suffix = "rd"
+    ones_digit = day % 10
+    tens_digit = (day // 10) % 10
+    if tens_digit == 1: suffix = "th"
+    elif ones_digit == 1: suffix = "st"
+    elif ones_digit == 2: suffix = "nd"
+    elif ones_digit == 3: suffix = "rd"
     else: suffix = "th"
     return f"{day}{suffix}"
 
@@ -89,7 +91,7 @@ class Calendar():
         elif matched := re.match(PATTERN_SPECIAL_DATE, s):
             name, year, before_or_after = matched.groups()
             day = 1
-            month = self._get_month_num(month)
+            month = self._get_month_num(name)
             year = int(year)
 
         if before_or_after:
