@@ -132,14 +132,14 @@ class Calendar():
         raise Exception(f"Month {month_name} not found in calendar")
 
     def _day_of_year(self, date: Date) -> int:
-        return date.day + sum(month["days"] for month in self._months[: date.month])
+        return date.day + sum(month["days"] for month in self._months[: date.month - 1])
 
     def day_of_year(self, date: Date) -> int:
         if not self.verify_date(date): raise DateError(date)
         return self._day_of_year(date)
 
     def _remainder_of_month(self, date: Date) -> int:
-        return self._months[date.month]["days"] - date.day
+        return self._months[date.month - 1]["days"] - date.day
 
     def remainder_of_month(self, date: Date) -> int:
         if not self.verify_date(date): raise DateError(date)
@@ -197,7 +197,7 @@ class Calendar():
 
     def shifted_date(self, date: Date, days: int) -> Date:
         if not self.verify_date(date): raise DateError(date)
-        return self._add_days(date, days)
+        return self._shifted_date(date, days)
 
     def _days_between_dates(self, date1: Date, date2: Date) -> int:
         reverse = False
