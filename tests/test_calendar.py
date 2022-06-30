@@ -66,17 +66,15 @@ def today():
 def calendar(months, today):
     return Calendar(months, today, "before", "after", False)
 
-def test_date_less_than(early_vs_late_date):
-    assert (
-        early_vs_late_date[0] < early_vs_late_date[1] and
-        early_vs_late_date[0] <= early_vs_late_date[1]
-    )
-
-def test_date_greater_than(early_vs_late_date):
-    assert (
-        early_vs_late_date[1] > early_vs_late_date[0] and
-        early_vs_late_date[1] >= early_vs_late_date[0]
-    )
+@pytest.mark.parametrize("early, late", [
+    (Date(1, 1, 1), Date(2, 1, 1)),
+    (Date(1, 1, 1), Date(1, 2, 1)),
+    (Date(1, 1, 1), Date(1, 1, 2)),
+    (Date(-1, 1, 1), Date(0, 1, 1)),
+    (Date(-2, 1, 1), Date(-1, 1, 1)),
+])
+def test_date_unequal(early, late):
+    assert early < late and early <= late and late > early and late >= early
 
 def test_date_equal(some_date):
     assert some_date == deepcopy(some_date)
