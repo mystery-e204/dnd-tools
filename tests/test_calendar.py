@@ -119,6 +119,7 @@ class TestCalendar:
     (Date(-3, 2, 2), 246, Date(-1, 2, 2)),
     (Date(10, 7, 10), -50, Date(10, 2, 23)),
     (Date(10, 2, 10), -250, Date(8, 2, 6)),
+    (Date(10, 2, 10), 0, Date(10, 2, 10)),
 ])
 def test_calendar_shift(calendar, date1, shift, date2):
     assert calendar.shifted_date(date1, shift) == date2
