@@ -5,11 +5,11 @@ from scripts.fantasy_calendar import Date, Calendar
 
 @pytest.fixture(params=[
     (1, 1, 1),
-    (2015, 2, 17),
+    (2015, 2, 2),
     (100, 4, 30),
     (10, 3, 1),
-    (0, 2, 5),
-    (-1, 2, 10),
+    (0, 2, 23),
+    (-1, 2, 12),
     (10, 7, 30),
 ])
 def some_date(request):
@@ -85,3 +85,19 @@ def test_date_not_equal(some_date):
 
 def test_calendar_verify_date(calendar, some_date):
     assert calendar.verify_date(some_date)
+
+@pytest.mark.parametrize("date, text", [
+    (Date(1, 1, 1), "1st of first month 1 after"),
+    (Date(2015, 2, 2), "2nd of second month 2015 after"),
+    (Date(100, 4, 30), "30th of third month 100 after"),
+    (Date(10, 3, 1), "1st of first special day 10 after"),
+    (Date(0, 2, 23), "23rd of second month 1 before"),
+    (Date(-1, 2, 12), "12th of second month 2 before"),
+    (Date(10, 7, 30), "30th of final month 10 after"),
+])
+class TestCalendarString:
+    def test_date_from_string(self, calendar, date, text):
+        assert calendar.date_from_string(text) == date
+    
+    def test_string_from_date(self, calendar, date, text):
+        assert calendar.string_from_date(date) == text
