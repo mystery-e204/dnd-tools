@@ -5,55 +5,24 @@ from __future__ import annotations
 import json
 import argparse
 from random import randint
-from typing import Any, List, TypedDict, Callable
+from typing import Any, TypedDict, Callable
 import re
 
 PATTERN_SLASH_DATE = re.compile(r"^(\d+)\/(\d+)\/(\d+) *(\w+)?$")
 PATTERN_WORDED_DATE = re.compile(r"^(\d+)(st|nd|rd|th) +of +(\D+\S) +(\d+) *(\w+)?$")
 PATTERN_SPECIAL_DATE = re.compile(r"^(.*) (\d+) *(\w+)?$")
 
+Timestamp = int
+Date = tuple[int, int, int]
+
 class Month(TypedDict):
     name: str
     days: int
 
-class Date():
-    def __init__(self, year: int, month: int, day: int) -> None:
-        if month < 1: raise ValueError("Month must be positive")
-        if day < 1: raise ValueError("Day must be positive")
-        self.year = year
-        self.month = month
-        self.day = day
-
-    def __str__(self) -> str:
-        return f"Date({self.year}, {self.month}, {self.day})"
-
-    def __eq__(self, other: Date) -> bool:
-        return self.day == other.day and self.month == other.month and self.year == other.year
-
-    def __lt__(self, other: Date) -> bool:
-        return (
-            self.year < other.year or
-            self.year == other.year and (
-                self.month < other.month or
-                self.month == other.month and self.day < other.day
-            )
-        )
-
-    def __le__(self, other: Date) -> bool:
-        return self < other or self == other
-
-    def __gt__(self, other: Date) -> bool:
-        return not self <= other
-
-    def __ge__(self, other: Date) -> bool:
-        return not self < other
-        
-
-class DateError(Exception):
-    def __init__(self, date: Date):
-        message = f"{date} is not a valid date"
-        super().__init__(message)
-
+class Holiday(TypedDict):
+    name: str
+    month: int
+    day: int
 
 def nth_from_day(day: int) -> str:
     if day < 0:
@@ -69,14 +38,49 @@ def nth_from_day(day: int) -> str:
 
 
 class Calendar():
-    def __init__(self, months: List[Month], today: str, before: str, after: str, has_year_zero: bool) -> None:
+    def __init__(self,
+        months: list[Month],
+        today: str|Timestamp,
+        before: str,
+        after: str,
+        has_year_zero: bool,
+        holidays: list[Holiday] = [],
+        day_zero: Timestamp = 0
+    ) -> None:
         self._months = months
         self._before = before
         self._after = after
         self._has_year_zero = has_year_zero
-        self.today = self.date_from_string(today)
+        self._holidays = holidays
+        self._day_zero = day_zero
+        self.today = today if isinstance(today, Timestamp) else self.str_to_timestamp(today)
         
-    def date_from_string(self, s: str) -> Date:
+    def timestamp_to_date(self, timestamp: Timestamp) -> Date:
+        timestamp -= self._day_zero
+        year, day = divmod(timestamp, self.num_days_of_year)
+        day += 1
+        month = 1
+        for m in self._months:
+            if day > m["days"]:
+                day -= m["days"]
+                month += 1
+            else:
+                break
+        year += int(year >= 0 or self._has_year_zero)
+        return year, month, day
+
+    def date_to_timestamp(self, date: Date) -> Timestamp:
+        if not self.verify_date(date):
+            raise ValueError(f"Date {date} does not exist in calendar")
+        year, month, day = date
+        year -= int(year >= 0 or self._has_year_zero)
+        timestamp = year * self.num_days_of_year + day - 1
+        for m in self._months[: month - 1]:
+            timestamp += m["days"]
+        timestamp += self._day_zero
+        return Timestamp(timestamp)
+
+    def str_to_timestamp(self, s: str) -> Timestamp:
         # Dates like 23/7/1978
         if matched := re.match(PATTERN_SLASH_DATE, s):
             day, month, year, before_or_after = matched.groups()
@@ -85,51 +89,64 @@ class Calendar():
         elif matched := re.match(PATTERN_WORDED_DATE, s):
             day, suffix, month, year, before_or_after = matched.groups()
             day = int(day)
-            month = self._get_month_num(month)
+            month, _ = self._search_month(month)
             year = int(year)
         # Special days inbetween months
         elif matched := re.match(PATTERN_SPECIAL_DATE, s):
             name, year, before_or_after = matched.groups()
-            day = 1
-            month = self._get_month_num(name)
+            holiday = self._search_holiday(name)
+            day = holiday["day"]
+            month = holiday["month"]
             year = int(year)
 
         if before_or_after:
             if before_or_after == self._before:
-                year = -year + int(not self._has_year_zero)
+                year = -year
             elif before_or_after != self._after:
                 raise Exception(f"Token {before_or_after} not recognized as before or after")
 
-        date = Date(year, month, day)
-        if not self.verify_date(date): raise DateError(date)
-        return date
+        return self.date_to_timestamp((year, month, day))
 
-    def string_from_date(self, date: Date) -> str:
-        if not self.verify_date(date): raise DateError(date)
-
-        year = date.year - int(date.year < 1 and not self._has_year_zero)
+    def timestamp_to_str(self, timestamp: Timestamp) -> str:
+        year, month, day = self.timestamp_to_date(timestamp)
+        year_str = f"{abs(year)}"
         before_or_after = self._before if year < 0 else self._after
-        year = abs(year)
-        day_str = nth_from_day(date.day)
-        month_str = self._months[date.month - 1]["name"]
 
-        return f"{day_str} of {month_str} {year} {before_or_after}"
+        if holiday_str := self._try_get_holiday(month, day):
+            return f"{holiday_str} {year_str} {before_or_after}"
+        else:
+            day_str = nth_from_day(day)
+            month_str = self._months[month - 1]["name"]
+            return f"{day_str} of {month_str} {year_str} {before_or_after}"
 
     def verify_date(self, date: Date) -> bool:
-        return (
-            date.month > 0 and date.month <= len(self._months) and
-            date.day > 0 and date.day <= self._months[date.month - 1]["days"]
-        )
+        year, month, day = date
+        year_ok = self._has_year_zero or year != 0
+        month_ok = month > 0 and month <= len(self._months)
+        day_ok = day > 0 and day <= self._months[month - 1]["days"]
+        return year_ok and month_ok and day_ok
 
     @property
     def num_days_of_year(self):
         return sum(month["days"] for month in self._months)
 
-    def _get_month_num(self, month_name: str) -> int:
+    def _search_month(self, month_name: str) -> tuple[int, Month]:
         for num, month in enumerate(self._months, 1):
             if month["name"] == month_name:
-                return num
+                return num, month
         raise Exception(f"Month {month_name} not found in calendar")
+
+    def _search_holiday(self, holiday_name: str) -> Holiday:
+        for holiday in self._holidays:
+            if holiday["name"] == holiday_name:
+                return holiday
+        raise Exception(f"Holiday {holiday_name} not found in calendar")
+
+    def _try_get_holiday(self, month: int, day: int) -> str | None:
+        for holiday in self._holidays:
+            if holiday["month"] == month and holiday["day"] == day:
+                return holiday["name"]
+        return None
 
     def _day_of_year(self, date: Date) -> int:
         return date.day + sum(month["days"] for month in self._months[: date.month - 1])
