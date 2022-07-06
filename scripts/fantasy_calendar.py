@@ -57,7 +57,7 @@ class Calendar():
         
     def timestamp_to_date(self, timestamp: Timestamp) -> Date:
         timestamp -= self._day_zero
-        year, day = divmod(timestamp, self.num_days_of_year)
+        year, day = divmod(timestamp, self.days_per_year)
         day += 1
         month = 1
         for m in self._months:
@@ -74,7 +74,7 @@ class Calendar():
             raise ValueError(f"Date {date} does not exist in calendar")
         year, month, day = date
         year -= int(year >= 0 or self._has_year_zero)
-        timestamp = year * self.num_days_of_year + day - 1
+        timestamp = year * self.days_per_year + day - 1
         for m in self._months[: month - 1]:
             timestamp += m["days"]
         timestamp += self._day_zero
@@ -127,7 +127,7 @@ class Calendar():
         return year_ok and month_ok and day_ok
 
     @property
-    def num_days_of_year(self):
+    def days_per_year(self):
         return sum(month["days"] for month in self._months)
 
     def _search_month(self, month_name: str) -> tuple[int, Month]:
@@ -172,23 +172,18 @@ def add_command(sub_parsers, name: str, callback: Callable[[Calendar, argparse.N
 
 def add_command_get_age(sub_parsers):
     def callback(calendar: Calendar, args: argparse.Namespace):
-        birthdate = calendar.date_from_string(args.birthday)
-        age = calendar.today.year - birthdate.year
-        if age < 0:
+        birth_timestamp = calendar.str_to_timestamp(args.birthday)
+        if calendar.today < birth_timestamp:
             print("Not yet born")
         else:
-            if calendar.today.month < birthdate.month or calendar.today.month == birthdate.month and calendar.today.day < birthdate.day:
-                age -= 1
-            print(age)
+            print((birth_timestamp - calendar.today) / calendar.days_per_year)
 
     parser = add_command(sub_parsers, "get-age", callback)
     parser.add_argument("birthday")
 
 def add_command_get_birthday(sub_parsers):
     def callback(calendar: Calendar, args: argparse.Namespace):
-        birthday = calendar.get_random_date()
-        birthday.year -= args.age + int(birthday > calendar.today)
-        print(calendar.string_from_date(birthday))
+        print(calendar.today - args.age * calendar.days_per_year - randint(0, calendar.days_per_year - 1))
 
     parser = add_command(sub_parsers, "get-birthday", callback)
     parser.add_argument("age", type=int)

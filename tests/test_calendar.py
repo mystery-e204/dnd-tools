@@ -63,8 +63,8 @@ def calendar(months, holidays, today):
 def test_calendar_verify_date(calendar, some_date):
     assert calendar.verify_date(some_date)
 
-def test_calendar_num_days_of_year(calendar):
-    assert calendar.num_days_of_year == 90
+def test_calendar_days_per_year(calendar):
+    assert calendar.days_per_year == 90
 
 @pytest.mark.parametrize("date, text, timestamp", [
     ((1, 1, 1), "1st of first month 1 after", 0),
