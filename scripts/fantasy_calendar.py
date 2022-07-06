@@ -40,7 +40,7 @@ def nth_from_day(day: int) -> str:
 class Calendar():
     def __init__(self,
         months: list[Month],
-        today: str|Timestamp,
+        today: str | Timestamp,
         before: str,
         after: str,
         has_year_zero: bool,
@@ -148,126 +148,18 @@ class Calendar():
                 return holiday["name"]
         return None
 
-    def _day_of_year(self, date: Date) -> int:
-        return date.day + sum(month["days"] for month in self._months[: date.month - 1])
+    def day_of_year(self, timestamp: Timestamp) -> int:
+        year, _, _ = self.timestamp_to_date(timestamp)
+        return timestamp - self.date_to_timestamp((year, 1, 1)) + 1
 
-    def day_of_year(self, date: Date) -> int:
-        if not self.verify_date(date): raise DateError(date)
-        return self._day_of_year(date)
+    def rest_of_year(self, timestamp: Timestamp) -> int:
+        year, _, _ = self.timestamp_to_date(timestamp)
+        return self.date_to_timestamp((year + 1, 1, 1)) - timestamp - 1
 
-    def _remainder_of_month(self, date: Date) -> int:
-        return self._months[date.month - 1]["days"] - date.day
+    def rest_of_month(self, timestamp: Timestamp) -> int:
+        _, month, day = self.timestamp_to_date(timestamp)
+        return self._months[month - 1]["days"] - day
 
-    def remainder_of_month(self, date: Date) -> int:
-        if not self.verify_date(date): raise DateError(date)
-        return self._remainder_of_month(date)
-
-    def _remainder_of_year(self, date: Date) -> int:
-        return self._remainder_of_month(date) + sum(month["days"] for month in self._months[date.month :])
-
-    def remainder_of_year(self, date: Date) -> int:
-        if not self.verify_date(date): raise DateError(date)
-        return self._remainder_of_year(date)
-
-    def _shifted_date(self, date: Date, days: int) -> Date:
-        shifted_date = Date(date.year, date.month, date.day)
-
-        if days == 0:
-            return shifted_date
-        elif days > 0:
-            years, days = divmod(days, self.num_days_of_year)
-            shifted_date.year += years
-
-            remainder = self._remainder_of_year(shifted_date)
-            if days > remainder:
-                days -= remainder + 1
-                shifted_date.year += 1
-                shifted_date.month = 1
-                shifted_date.day = 1
-
-            for month in self._months:
-                if days >= month["days"]:
-                    days -= month["days"]
-                    shifted_date.month += 1
-                else:
-                    shifted_date.day += days
-                    return shifted_date
-        else:
-            years, days = divmod(-days, self.num_days_of_year)
-            shifted_date.year -= years
-
-            remainder = self._day_of_year(shifted_date)
-            if days >= remainder:
-                days -= remainder
-                shifted_date.year -= 1
-                shifted_date.month = len(self._months)
-                shifted_date.day = self._months[-1]["days"]
-
-            for month in self._months[-1::-1]:
-                if days >= month["days"]:
-                    days -= month["days"]
-                    shifted_date.month -= 1
-                else:
-                    shifted_date.day -= days
-                    return shifted_date
-
-
-    def shifted_date(self, date: Date, days: int) -> Date:
-        if not self.verify_date(date): raise DateError(date)
-        return self._shifted_date(date, days)
-
-    def _days_between_dates(self, date1: Date, date2: Date) -> int:
-        reverse = False
-        if date1 == date2:
-            return 0
-        elif date2 < date1:
-            date1, date2 = date2, date1
-            reverse = True
-
-        diff_years = date2.year - date1.year
-        if diff_years > 0:
-            days = self._remainder_of_year(date1) + self._day_of_year(date2)
-            days += (diff_years - 1) * self.num_days_of_year
-        elif date2.month > date1.month:
-            days = self._remainder_of_month(date1) + date2.day
-            days += sum(month["days"] for month in self._months[date1.month : date2.month])
-        else:
-            days = date2.day - date1.day
-
-        return -days if reverse else days
-
-    def days_between_dates(self, date1: Date, date2: Date) -> int:
-        if not self.verify_date(date1): raise DateError(date1)
-        if not self.verify_date(date2): raise DateError(date2)
-        return self._days_between_dates(date1, date2)
-
-    def _get_random_date(self, start: Date, stop: Date) -> Date:
-        if start == stop:
-            return Date(start.year, start.month, start.day)
-        if start > stop:
-            raise Exception(f"{start} is ahead of {stop}")
-
-        num_days = self._days_between_dates(start, stop)
-        shift = randint(0, num_days - 1)
-        return self._shifted_date(start, shift)
-
-    def get_random_date(self, start: Date = None, stop: Date = None) -> Date:
-        if start is None and stop is None:
-            shift = randint(0, self.num_days_of_year - 1)
-            return self._shifted_date(Date(self.today.year, 1, 1), shift)
-        else:
-            # From the start of the year
-            if start is None:
-                start = Date(stop.year, 1, 1)
-            elif not self.verify_date(start):
-                raise DateError(start)
-            # Till the end of the year
-            if stop is None:
-                stop = Date(start.year, len(self._months), self._months[-1]["days"])
-            elif not self.verify_date(stop):
-                raise DateError(stop)
-
-            return self._get_random_date(start, stop)
 
 def load_calendar(json_file) -> Calendar:
     calendar_data = json.load(json_file)
