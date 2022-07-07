@@ -176,14 +176,15 @@ def add_command_get_age(sub_parsers):
         if calendar.today < birth_timestamp:
             print("Not yet born")
         else:
-            print((birth_timestamp - calendar.today) / calendar.days_per_year)
+            print((calendar.today - birth_timestamp) // calendar.days_per_year)
 
     parser = add_command(sub_parsers, "get-age", callback)
     parser.add_argument("birthday")
 
 def add_command_get_birthday(sub_parsers):
     def callback(calendar: Calendar, args: argparse.Namespace):
-        print(calendar.today - args.age * calendar.days_per_year - randint(0, calendar.days_per_year - 1))
+        timestamp = calendar.today - args.age * calendar.days_per_year - randint(0, calendar.days_per_year - 1)
+        print(calendar.timestamp_to_str(timestamp))
 
     parser = add_command(sub_parsers, "get-birthday", callback)
     parser.add_argument("age", type=int)
