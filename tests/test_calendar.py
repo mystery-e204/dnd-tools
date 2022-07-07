@@ -95,3 +95,22 @@ class TestCalendar:
 
     def test_rest_of_year(self, calendar: Calendar, date: Date, text: str, timestamp: int, day_of_year: int, rest_month: int, rest_year: int):
         assert calendar.rest_of_year(timestamp) == rest_year
+
+@pytest.mark.parametrize("day_zero, date", [
+    (0, (1, 1, 1)),
+    (1, (-1, 3, 30)),
+    (2, (-1, 3, 29)),
+    (89, (-1, 1, 2)),
+    (90, (-1, 1, 1)),
+    (91, (-2, 3, 30)),
+    (1000, (-12, 3, 21)),
+    (-1, (1, 1, 2)),
+    (-2, (1, 1, 3)),
+    (-89, (1, 3, 30)),
+    (-90, (2, 1, 1)),
+    (-91, (2, 1, 2)),
+    (-1000, (12, 1, 11)),
+])
+def test_day_zero(months, today, day_zero: int, date: Date):
+    calendar = Calendar(months, today, "before", "after", False, holidays, day_zero)
+    assert calendar.timestamp_to_date(0) == date
