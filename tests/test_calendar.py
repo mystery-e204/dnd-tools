@@ -66,24 +66,32 @@ def test_calendar_verify_date(calendar, some_date):
 def test_calendar_days_per_year(calendar):
     assert calendar.days_per_year == 90
 
-@pytest.mark.parametrize("date, text, timestamp", [
-    ((1, 1, 1), "1st of first month 1 after", 0),
-    ((2015, 2, 2), "2nd of second month 2015 after", 181291),
-    ((10, 1, 3), "first special day 10 after", 812),
-    ((100, 3, 30), "third special day 100 after", 8999),
-    ((-1, 2, 23), "23rd of second month 1 before", -38),
-    ((-2, 2, 12), "12th of second month 2 before", -139),
+@pytest.mark.parametrize("date, text, timestamp, day_of_year, rest_month, rest_year", [
+    ((1, 1, 1), "1st of first month 1 after", 0, 1, 29, 89),
+    ((2015, 2, 2), "2nd of second month 2015 after", 181291, 32, 28, 58),
+    ((10, 1, 3), "first special day 10 after", 812, 3, 27, 87),
+    ((100, 3, 30), "third special day 100 after", 8999, 90, 0, 0),
+    ((-1, 2, 23), "23rd of second month 1 before", -38, 53, 7, 37),
+    ((-2, 2, 12), "12th of second month 2 before", -139, 42, 18, 48),
 ])
 class TestCalendar:
-    def test_timestamp_to_date(self, calendar: Calendar, date: Date, text: str, timestamp: int):
+    def test_timestamp_to_date(self, calendar: Calendar, date: Date, text: str, timestamp: int, day_of_year: int, rest_month: int, rest_year: int):
         assert calendar.timestamp_to_date(timestamp) == date
     
-    def test_date_to_timestamp(self, calendar: Calendar, date: Date, text: str, timestamp: int):
+    def test_date_to_timestamp(self, calendar: Calendar, date: Date, text: str, timestamp: int, day_of_year: int, rest_month: int, rest_year: int):
         assert calendar.date_to_timestamp(date) == timestamp
     
-    def test_timestamp_to_str(self, calendar: Calendar, date: Date, text: str, timestamp: int):
+    def test_timestamp_to_str(self, calendar: Calendar, date: Date, text: str, timestamp: int, day_of_year: int, rest_month: int, rest_year: int):
         assert calendar.timestamp_to_str(timestamp) == text
     
-    def test_str_to_timestamp(self, calendar: Calendar, date: Date, text: str, timestamp: int):
+    def test_str_to_timestamp(self, calendar: Calendar, date: Date, text: str, timestamp: int, day_of_year: int, rest_month: int, rest_year: int):
         assert calendar.str_to_timestamp(text) == timestamp
 
+    def test_day_of_year(self, calendar: Calendar, date: Date, text: str, timestamp: int, day_of_year: int, rest_month: int, rest_year: int):
+        assert calendar.day_of_year(timestamp) == day_of_year
+
+    def test_rest_of_month(self, calendar: Calendar, date: Date, text: str, timestamp: int, day_of_year: int, rest_month: int, rest_year: int):
+        assert calendar.rest_of_month(timestamp) == rest_month
+
+    def test_rest_of_year(self, calendar: Calendar, date: Date, text: str, timestamp: int, day_of_year: int, rest_month: int, rest_year: int):
+        assert calendar.rest_of_year(timestamp) == rest_year
