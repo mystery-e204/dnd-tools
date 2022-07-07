@@ -152,13 +152,13 @@ class Calendar():
         year, _, _ = self.timestamp_to_date(timestamp)
         return timestamp - self.date_to_timestamp((year, 1, 1)) + 1
 
-    def rest_of_year(self, timestamp: Timestamp) -> int:
-        year, _, _ = self.timestamp_to_date(timestamp)
-        return self.date_to_timestamp((year + 1, 1, 1)) - timestamp - 1
-
     def rest_of_month(self, timestamp: Timestamp) -> int:
         _, month, day = self.timestamp_to_date(timestamp)
         return self._months[month - 1]["days"] - day
+
+    def rest_of_year(self, timestamp: Timestamp) -> int:
+        year, _, _ = self.timestamp_to_date(timestamp)
+        return self.date_to_timestamp((year + 1, 1, 1)) - timestamp - 1
 
 
 def load_calendar(json_file) -> Calendar:
